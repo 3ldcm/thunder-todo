@@ -1,101 +1,86 @@
 import { useState, useEffect } from 'react';
+import { fetchTodos, createTodo, toggleTodo, deleteTodo } from './api';
+import { AddTodoForm } from './components/AddTodoForm';
+import { FilterBar } from './components/FilterBar';
+import { TodoItem } from './components/TodoItem';
+import type { Todo } from './types';
 
-interface Todo {
-  id: string;
-  title: string;
-  completed: boolean;
-  createdAt: string;
-}
-
-type FilterStatus = 'all' | 'active' | 'completed';
-
-const API = '/api/todos';
+type Filter = 'all' | 'active' | 'completed';
 
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [text, setText] = useState('');
-  const [filter, setFilter] = useState<FilterStatus>('all');
+  const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchTodos = async (status: FilterStatus = 'all') => {
-    const url = status === 'all' ? API : `${API}?status=${status}`;
-    const res = await fetch(url);
-    const data = await res.json() as Todo[];
-    setTodos(data);
-  };
-
-  useEffect(() => { void fetchTodos(filter); }, [filter]);
-
-  const addTodo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!text.trim() || loading) return;
+  const loadTodos = async (status: Filter) => {
     setLoading(true);
-    await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: text }),
-    });
-    setText('');
-    await fetchTodos(filter);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await fetchTodos(status);
+      setTodos(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleTodo = async (id: string, completed: boolean) => {
-    await fetch(`${API}/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ completed: !completed }),
-    });
-    await fetchTodos(filter);
+  useEffect(() => {
+    void loadTodos(filter);
+  }, [filter]);
+
+  const handleAdd = async (title: string) => {
+    try {
+      await createTodo(title);
+      await loadTodos(filter);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add todo');
+    }
   };
 
-  const deleteTodo = async (id: string) => {
-    await fetch(`${API}/${id}`, { method: 'DELETE' });
-    await fetchTodos(filter);
+  const handleToggle = async (id: string, completed: boolean) => {
+    try {
+      await toggleTodo(id, completed);
+      await loadTodos(filter);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update todo');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteTodo(id);
+      await loadTodos(filter);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete todo');
+    }
   };
 
   return (
     <div className="app">
       <h1>Thunder Todo</h1>
 
-      <form className="add-form" onSubmit={(e) => { void addTodo(e); }}>
-        <input
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="What needs to be done?"
-          autoFocus
+      <AddTodoForm onAdd={(title) => { void handleAdd(title); }} />
+
+      <FilterBar current={filter} onChange={setFilter} />
+
+      {loading && <span>Loading...</span>}
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      {!loading && todos.length === 0 && (
+        <p className="empty">No todos here!</p>
+      )}
+
+      {todos.map((todo) => (
+        <TodoItem
+          key={todo.id}
+          todo={todo}
+          onToggle={(id, completed) => { void handleToggle(id, completed); }}
+          onDelete={(id) => { void handleDelete(id); }}
         />
-        <button type="submit" disabled={loading}>Add</button>
-      </form>
-
-      <div className="filters">
-        {(['all', 'active', 'completed'] as FilterStatus[]).map(f => (
-          <button
-            key={f}
-            className={filter === f ? 'active' : ''}
-            onClick={() => setFilter(f)}
-          >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      <ul className="todo-list">
-        {todos.length === 0 && (
-          <p className="empty">No todos here. Add one above!</p>
-        )}
-        {todos.map(todo => (
-          <li key={todo.id} className={`todo-item${todo.completed ? ' completed' : ''}`}>
-            <input
-              type="checkbox"
-              checked={todo.completed}
-              onChange={() => { void toggleTodo(todo.id, todo.completed); }}
-            />
-            <span>{todo.title}</span>
-            <button className="delete-btn" onClick={() => { void deleteTodo(todo.id); }}>✕</button>
-          </li>
-        ))}
-      </ul>
+      ))}
     </div>
   );
 }

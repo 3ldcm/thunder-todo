@@ -57,12 +57,12 @@ describe('TodoItem', () => {
   it('applies line-through style when todo is completed', () => {
     render(<TodoItem todo={completedTodo} onToggle={() => {}} onDelete={() => {}} />);
     const span = screen.getByText('Buy groceries');
-    expect(span).toHaveStyle({ textDecoration: 'line-through' });
+    expect(span).toHaveClass(/line-through/);
   });
 
   it('does not apply line-through style when todo is not completed', () => {
     render(<TodoItem todo={mockTodo} onToggle={() => {}} onDelete={() => {}} />);
     const span = screen.getByText('Buy groceries');
-    expect(span).toHaveStyle({ textDecoration: 'none' });
+    expect(span).not.toHaveClass(/line-through/);
   });
 });

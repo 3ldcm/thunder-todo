@@ -6,6 +6,8 @@ import App from './App.tsx';
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Root element not found');
 
+document.body.classList.add('dark');
+
 createRoot(rootElement).render(
   <StrictMode>
     <App />

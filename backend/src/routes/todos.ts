@@ -21,7 +21,12 @@ router.post('/', (req: Request, res: Response) => {
     res.status(400).json({ error: 'title is required' });
     return;
   }
-  const todo = createTodo(title.trim());
+  const trimmed = title.trim();
+  if (trimmed.length > 500) {
+    res.status(400).json({ error: 'title must be 500 characters or less' });
+    return;
+  }
+  const todo = createTodo(trimmed);
   res.status(201).json(todo);
 });
 
